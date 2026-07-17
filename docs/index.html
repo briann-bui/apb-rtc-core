@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>APB RTC Core</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <h1>APB RTC Core</h1>
+  <p>A simple binary-calendar RTC with a 32-bit APB interface, programmable
+     prescaler, calendar rollover, alarm matching, and interrupts.</p>
+
+  <h2>Block Flow</h2>
+  <p><code>APB registers → prescaler → time/calendar counters → alarm comparator → IRQ</code></p>
+
+  <h2>Register Map</h2>
+  <table>
+    <thead><tr><th>Address</th><th>Name</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td>0x00</td><td>CTRL</td><td>RTC and alarm control</td></tr>
+      <tr><td>0x04</td><td>STATUS</td><td>Running and pending status</td></tr>
+      <tr><td>0x08</td><td>PRESCALER</td><td>PCLK cycles minus one per second</td></tr>
+      <tr><td>0x0C</td><td>TIME</td><td>Binary hour, minute, second</td></tr>
+      <tr><td>0x10</td><td>DATE</td><td>Binary year, month, day</td></tr>
+      <tr><td>0x14</td><td>ALARM_TIME</td><td>Alarm time</td></tr>
+      <tr><td>0x18</td><td>ALARM_DATE</td><td>Optional alarm date</td></tr>
+      <tr><td>0x1C</td><td>IRQ_EN</td><td>Interrupt enables</td></tr>
+      <tr><td>0x20</td><td>IRQ_STAT</td><td>Write-one-to-clear pending bits</td></tr>
+      <tr><td>0x24</td><td>VERSION</td><td>IP version</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Verification</h2>
+  <p>Run <code>make lint</code> for RTL lint and <code>make run</code> for the
+     UVM regression.</p>
+</body>
+</html>

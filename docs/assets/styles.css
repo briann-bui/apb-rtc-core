@@ -1,0 +1,29 @@
+:root {
+  color-scheme: light dark;
+  font-family: Inter, Segoe UI, sans-serif;
+}
+
+body {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2rem;
+  line-height: 1.6;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.55rem;
+  border: 1px solid #8886;
+  text-align: left;
+}
+
+code {
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  background: #8882;
+}

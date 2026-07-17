@@ -1,0 +1,9 @@
+`ifndef APB_RTC_DEFINES_SVH
+`define APB_RTC_DEFINES_SVH
+
+`define APB_RTC_ADDR_WIDTH 8
+`define APB_RTC_DATA_WIDTH 32
+
+`define APB_RTC_VERSION 32'h0001_0000
+
+`endif
