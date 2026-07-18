@@ -18,6 +18,8 @@ Detailed local documentation: [APB RTC IP Documentation](docs/index.html)
 
 ## Architecture
 
+![APB RTC architecture](docs/Architecture.png)
+
 ```text
 APB Master
     -> APB Register Interface
