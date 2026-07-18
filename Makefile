@@ -1,76 +1,105 @@
-VERILATOR_BIN ?= C:/msys64/usr/bin/perl C:/msys64/ucrt64/bin/verilator
-VERILATOR_FLAGS ?= --language 1800-2017
+VCS ?= vcs
+SPYGLASS ?= spyglass
 
 FILELIST ?= filelist.f
-GF180_FILELIST ?= filelist_gf180.f
-RTL_FILELIST ?= .rtl_filelist.f
-GF180_RTL_FILELIST ?= .rtl_gf180_filelist.f
 TOP_MODULE ?= apb_rtc_wrapper
-
 UVM_TOP ?= apb_rtc_tb_top
 UVM_TEST ?= apb_rtc_all_test
 
-MODELSIM_HOME ?= /c/intelFPGA/18.1/modelsim_ase
-MODELSIM_BIN ?= $(MODELSIM_HOME)/win32aloem
-UVM_SRC ?= C:/intelFPGA/18.1/modelsim_ase/verilog_src/uvm-1.2/src
-UVM_DEFINES ?= +define+UVM_NO_DPI+UVM_NO_RELNOTES
+REPORT_DIR ?= reports
+VCS_DIR := $(REPORT_DIR)/vcs
+SPYGLASS_DIR := $(REPORT_DIR)/spyglass
 
-VLIB ?= $(MODELSIM_BIN)/vlib.exe
-VLOG ?= $(MODELSIM_BIN)/vlog.exe
-VSIM ?= $(MODELSIM_BIN)/vsim.exe
-VSIM_FLAGS ?= -suppress 19 -suppress 8315
+LINT_PRJ ?= lint/lint.prj
+CDC_PRJ ?= cdc/cdc.prj
+RDC_PRJ ?= rdc/rdc.prj
 
-SIM_DIR ?= sim
-RUN_LOG ?= $(SIM_DIR)/run_check.log
+VCS_FLAGS ?= -full64 -sverilog -nc -timescale=1ns/1ps
+VCS_UVM_FLAGS ?= -ntb_opts uvm-1.2
 
-.PHONY: all lint lint-gf180 compile run coverage clean check-modelsim
+.PHONY: all compile compile-rtl lint cdc rdc check run clean
 
-all: lint compile
+all: check
 
-$(RTL_FILELIST): $(FILELIST)
-	@grep -v '^uvm/' $(FILELIST) | grep -v '^+incdir+uvm/' > $@
+check: compile lint cdc rdc
 
-$(GF180_RTL_FILELIST): $(GF180_FILELIST)
-	@grep -v '^uvm/' $(GF180_FILELIST) | grep -v '^+incdir+uvm/' > $@
+compile:
+	@mkdir -p $(VCS_DIR)/compile/csrc
+	$(VCS) $(VCS_FLAGS) $(VCS_UVM_FLAGS) -f $(FILELIST) \
+		-top $(UVM_TOP) \
+		-Mdir=$(VCS_DIR)/compile/csrc \
+		-o $(VCS_DIR)/compile/simv \
+		-l $(VCS_DIR)/compile.log
+	@{ \
+		echo "APB RTC VCS compile summary"; \
+		echo "Status: PASS"; \
+		echo "Top: $(UVM_TOP)"; \
+		echo "File list: $(FILELIST)"; \
+		echo "Full log: $(VCS_DIR)/compile.log"; \
+	} > $(REPORT_DIR)/compile_summary.rpt
 
-check-modelsim:
-	@test -x $(VLIB) || { echo "ERROR: missing $(VLIB). Set MODELSIM_HOME or VLIB."; exit 127; }
-	@test -x $(VLOG) || { echo "ERROR: missing $(VLOG). Set MODELSIM_HOME or VLOG."; exit 127; }
-	@test -x $(VSIM) || { echo "ERROR: missing $(VSIM). Set MODELSIM_HOME or VSIM."; exit 127; }
-	@test -f $(UVM_SRC)/uvm_pkg.sv || { echo "ERROR: missing $(UVM_SRC)/uvm_pkg.sv. Set UVM_SRC."; exit 127; }
+compile-rtl:
+	@mkdir -p $(VCS_DIR)/rtl/csrc
+	$(VCS) $(VCS_FLAGS) +lint=all,noVCDE +incdir+inc \
+		rtl/apb_rtc_pkg.sv \
+		rtl/apb_rtc_core.sv \
+		rtl/apb_rtc_apb_interface.sv \
+		rtl/apb_rtc_wrapper.sv \
+		-top $(TOP_MODULE) \
+		-Mdir=$(VCS_DIR)/rtl/csrc \
+		-o $(VCS_DIR)/rtl/simv \
+		-l $(VCS_DIR)/rtl_compile.log
+	@{ \
+		echo "APB RTC VCS RTL compile summary"; \
+		echo "Status: PASS"; \
+		echo "Top: $(TOP_MODULE)"; \
+		echo "Full log: $(VCS_DIR)/rtl_compile.log"; \
+	} > $(REPORT_DIR)/rtl_compile_summary.rpt
 
-lint: $(RTL_FILELIST)
-	$(VERILATOR_BIN) $(VERILATOR_FLAGS) --lint-only -f $(RTL_FILELIST) --top-module $(TOP_MODULE)
+lint:
+	@mkdir -p $(SPYGLASS_DIR)/lint
+	@cp $(LINT_PRJ) $(SPYGLASS_DIR)/lint/lint.prj
+	$(SPYGLASS) -batch -project $(SPYGLASS_DIR)/lint/lint.prj \
+		-goals "lint/lint_rtl" \
+		> $(REPORT_DIR)/lint.log 2>&1
+	@report=$$(find $(SPYGLASS_DIR)/lint -path '*/lint/lint_rtl/spyglass_reports/moresimple.rpt' -print -quit); \
+		test -n "$$report"; \
+		cp "$$report" $(REPORT_DIR)/lint_summary.rpt
+	@echo "Lint summary: $(REPORT_DIR)/lint_summary.rpt"
 
-lint-gf180: $(GF180_RTL_FILELIST)
-	$(VERILATOR_BIN) $(VERILATOR_FLAGS) +define+GF180MCU_SC --lint-only -f $(GF180_RTL_FILELIST) --top-module $(TOP_MODULE)
+cdc:
+	@mkdir -p $(SPYGLASS_DIR)/cdc
+	@cp $(CDC_PRJ) $(SPYGLASS_DIR)/cdc/cdc.prj
+	$(SPYGLASS) -batch -project $(SPYGLASS_DIR)/cdc/cdc.prj \
+		-goals "cdc/cdc_setup_check,cdc/cdc_verify" \
+		> $(REPORT_DIR)/cdc.log 2>&1
+	@report=$$(find $(SPYGLASS_DIR)/cdc -path '*/cdc/cdc_verify/spyglass_reports/moresimple.rpt' -print -quit); \
+		test -n "$$report"; \
+		cp "$$report" $(REPORT_DIR)/cdc_summary.rpt
+	@echo "CDC summary: $(REPORT_DIR)/cdc_summary.rpt"
 
-compile: check-modelsim
-	@test -d work || $(VLIB) work
-	$(VLOG) -sv $(UVM_DEFINES) +incdir+$(UVM_SRC) -work work $(UVM_SRC)/uvm_pkg.sv
-	$(VLOG) -sv $(UVM_DEFINES) +acc +incdir+$(UVM_SRC) -work work -f $(FILELIST)
+rdc:
+	@mkdir -p $(SPYGLASS_DIR)/rdc
+	@cp $(RDC_PRJ) $(SPYGLASS_DIR)/rdc/rdc.prj
+	$(SPYGLASS) -batch -project $(SPYGLASS_DIR)/rdc/rdc.prj \
+		-goals "rdc/rdc_verify_struct" \
+		> $(REPORT_DIR)/rdc.log 2>&1
+	@report=$$(find $(SPYGLASS_DIR)/rdc -path '*/rdc/rdc_verify_struct/spyglass_reports/moresimple.rpt' -print -quit); \
+		test -n "$$report"; \
+		cp "$$report" $(REPORT_DIR)/rdc_summary.rpt
+	@echo "RDC summary: $(REPORT_DIR)/rdc_summary.rpt"
 
 run: compile
-	@mkdir -p $(SIM_DIR)
-	$(VSIM) -c $(VSIM_FLAGS) $(UVM_TOP) +UVM_TESTNAME=$(UVM_TEST) +UVM_NO_RELNOTES -l $(RUN_LOG) -do "run -all; quit -f"
-	@grep -q 'UVM_ERROR :    0' $(RUN_LOG) || { echo "UVM run failed: see $(RUN_LOG)"; exit 1; }
-	@grep -q 'UVM_FATAL :    0' $(RUN_LOG) || { echo "UVM run failed: see $(RUN_LOG)"; exit 1; }
-
-coverage: check-modelsim
-	@mkdir -p $(SIM_DIR)
-	@test -d work || $(VLIB) work
-	$(VLOG) -sv $(UVM_DEFINES) +incdir+$(UVM_SRC) -work work $(UVM_SRC)/uvm_pkg.sv
-	$(VLOG) -sv $(UVM_DEFINES) +acc +cover +incdir+$(UVM_SRC) -work work -f $(FILELIST)
-	$(VSIM) -c $(VSIM_FLAGS) -coverage $(UVM_TOP) +UVM_TESTNAME=$(UVM_TEST) +UVM_NO_RELNOTES -l $(RUN_LOG) -do "coverage save -onexit $(SIM_DIR)/coverage.ucdb; run -all; quit -f"
-	@grep -q 'UVM_ERROR :    0' $(RUN_LOG) || { echo "UVM run failed: see $(RUN_LOG)"; exit 1; }
-	@grep -q 'UVM_FATAL :    0' $(RUN_LOG) || { echo "UVM run failed: see $(RUN_LOG)"; exit 1; }
-	@echo "Generating HTML coverage report..."
-	$(MODELSIM_BIN)/vcover.exe report -html -htmldir $(SIM_DIR)/covhtmlreport $(SIM_DIR)/coverage.ucdb
-	@echo "Coverage report generated at $(SIM_DIR)/covhtmlreport/index.html"
+	$(VCS_DIR)/compile/simv +UVM_TESTNAME=$(UVM_TEST) \
+		-l $(REPORT_DIR)/run.log
+	@grep -q 'UVM_ERROR :    0' $(REPORT_DIR)/run.log
+	@grep -q 'UVM_FATAL :    0' $(REPORT_DIR)/run.log
 
 clean:
-	rm -rf obj_dir work $(SIM_DIR) reports
-	rm -f $(RTL_FILELIST) $(GF180_RTL_FILELIST)
-	rm -f transcript tr_db.log vsim.wlf modelsim.ini
-	rm -f *.wlf *.vstf *.ucdb *.log
-	rm -rf wlft* covhtmlreport
+	# Keep top-level logs and *_summary.rpt files as the permanent check reports.
+	rm -rf $(VCS_DIR) $(SPYGLASS_DIR)
+	rm -rf csrc simv simv.daidir DVEfiles AN.DB novas.conf novas.rc verdiLog
+	rm -rf lint/lint cdc/cdc rdc/rdc
+	rm -f ucli.key vc_hdrs.h tr_db.log spyglass.log transcript
+	rm -f *.vpd *.vcd *.fsdb *.wlf *.vstf *.ucdb *.log
+	@echo "Removed tool work files; kept reports/*.log and reports/*_summary.rpt."

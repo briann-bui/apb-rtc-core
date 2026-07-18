@@ -27,5 +27,3 @@ reports/
 *.bak
 *~
 .DS_Store
-.rtl_filelist.f
-.rtl_gf180_filelist.f

@@ -1,0 +1,3 @@
+current_design apb_rtc_wrapper
+clock -name apb_rtc_wrapper.i_apb_rtc_pclk -domain PCLK -period 20 -waveform {0 10}
+reset -name apb_rtc_wrapper.i_apb_rtc_presetn -value 0

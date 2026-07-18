@@ -1,0 +1,13 @@
+set_option language_mode mixed
+set_option enableSV09 yes
+set_option incdir {inc}
+set_option top apb_rtc_wrapper
+
+read_file -type hdl {
+  rtl/apb_rtc_pkg.sv
+  rtl/apb_rtc_core.sv
+  rtl/apb_rtc_apb_interface.sv
+  rtl/apb_rtc_wrapper.sv
+}
+
+read_file -type sgdc {cdc/rtc.sgdc}
