@@ -1,4 +1,6 @@
-# APB RTC Core
+﻿# APB RTC Core
+
+[![RTL Lint](https://github.com/briann-bui/apb-rtc-core/actions/workflows/lint.yml/badge.svg)](https://github.com/briann-bui/apb-rtc-core/actions/workflows/lint.yml)
 
 A simple synthesizable Real-Time Clock written in SystemVerilog for FPGA and
 ASIC integration. The IP provides a 32-bit APB register interface, binary
@@ -69,3 +71,4 @@ Makefile      Lint, compile, run, coverage, and clean targets
 `2000-01-01 00:00:00` and leaves the RTC disabled. For time retention during a
 main-power loss, integrate the counter state with an always-on power domain or
 retention registers at SoC level.
+
